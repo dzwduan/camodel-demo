@@ -2,12 +2,16 @@
 #include "reg.h"
 
 
-Wire& operator<<(Wire& wire, Reg& reg) {
-    wire.write(reg.read());
-    return wire;
+
+
+Wire& Wire::operator=(const Reg& reg) {
+    this->write(reg.read());
+    return *this;
 }
 
-Reg& operator<<=(Reg& reg, const Wire& wire) {
-    reg.write(wire.read());
-    return reg;
+Reg& Reg::operator<<=(const Wire& wire) {
+    this->write(wire.read());
+    return *this;
 }
+
+// std::unordered_set<BasicReg*> BasicReg::reg_lists; 

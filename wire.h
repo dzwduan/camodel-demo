@@ -39,10 +39,7 @@ class Wire {
             return *this;
         }
 
-        friend Wire& operator<<(Wire& wire, Reg& reg);
+        Wire& operator=(const Reg& reg);
 
-    private:
         uint32_t val;
 };
-
-Wire& operator<<(Wire& wire, Reg& reg);

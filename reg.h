@@ -1,24 +1,45 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_set>
 #include "wire.h"
 
 class Wire;
 
-class Reg {
+class BasicReg {
+    public:
+    // C++17 允许通过 inline 关键字在类内直接定义静态成员变量
+        inline static std::unordered_set<BasicReg *> reg_lists;
+        virtual void update() = 0;
+
+        static void update_all() {
+            for (auto &reg : reg_lists) {
+                reg->update();
+            }
+        }
+
+        virtual ~BasicReg() = default;
+};
+
+class Reg : public BasicReg{
 
     public:
-        Reg() : curr_val(0), next_val(0) {}
-        Reg(uint32_t val) : curr_val(0), next_val(val) {}
+        Reg() : curr_val(0), next_val(0) {
+            reg_lists.insert(this);
+        }
+        Reg(uint32_t val) : curr_val(0), next_val(val) {
+            reg_lists.insert(this);
+        }
+
         void write(uint32_t val) {
             next_val = val;
         }
 
-        [[nodiscard]] constexpr uint32_t read() const{
+        constexpr uint32_t read() const {
             return curr_val;
         }
 
-        void update() {
+        void update() override{
             curr_val = next_val;
         }
 
@@ -44,7 +65,7 @@ class Reg {
             return *this;
         }
 
-        friend Reg& operator<<=(Reg& reg, const Wire& wire);
+        Reg& operator<<=(const Wire& wire);
 
     private:
         uint32_t curr_val;
@@ -52,4 +73,4 @@ class Reg {
 };
 
 
-Reg& operator<<=(Reg& reg, const Wire& wire);
+

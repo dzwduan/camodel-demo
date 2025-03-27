@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic
+CXXFLAGS = -std=c++17 -Wall -Werror -Wextra -pedantic -g -fsanitize=address -fno-omit-frame-pointer
 # Google Test flags
 GTEST_FLAGS = -lgtest -lgtest_main -pthread
 # Target executable
