@@ -4,10 +4,10 @@ CXXFLAGS = -std=c++20 -Wall -Werror -Wextra -pedantic -g -fsanitize=address -fno
 # Google Test flags
 GTEST_FLAGS = -lgtest -lgtest_main -pthread
 # Target executable
-TARGET = wire_reg_test
+TARGET = unit_test
 # Source files
-SRCS = main.cc op.cc
-HEADERS = wire.h reg.h
+SRCS = $(wildcard *.cc)
+HEADERS = $(wildcard *.h)
 # Object files
 OBJS = $(SRCS:.cc=.o)
 # Default target
@@ -20,5 +20,5 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 # Clean target
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET) $(OBJS) 
 .PHONY: all clean

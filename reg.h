@@ -1,103 +1,103 @@
 #pragma once
 
-#include <functional>
-#include <ostream>
-#include <unordered_set>
 #include <cstdint>
+#include <stdexcept>
+#include <unordered_set>
 
-class RegBase {
-protected:
-  // c++20支持类内inline static成员初始化
-  inline static std::unordered_set<RegBase *> allRegs;
 
-public:
-  virtual ~RegBase() = default;
-  virtual void update() = 0;
-  static void global_clock() {
-    for (const auto &reg : allRegs) {
-      reg->update();
-    }
-  }
+class BasicReg {
+    public:
+    // C++17 允许通过 inline 关键字在类内直接定义静态成员变量
+        inline static std::unordered_set<BasicReg *> reg_lists;
+
+        virtual void update() = 0;
+        virtual void reset() = 0;
+
+        static void update_all() {
+            for (auto &reg : reg_lists) {
+                reg->update();
+            }
+        }
+        
+        static void reset_all() {
+            for (auto &reg : reg_lists) {
+                reg->reset();
+            }
+        }
+
+        virtual ~BasicReg() = default;
 };
 
-template <typename T> class Reg : public RegBase {
-private:
-  T curr_val;
-  T next_val;
-  uint32_t w_cnt;
 
-protected:
-  T get_value() { return this->curr_val; }
-  T get_next_value() { return this->next_val; }
+template<typename T>
+class Reg : public BasicReg{
 
-public:
-  Reg(T init) : curr_val(init), next_val(init), w_cnt(0) { allRegs.insert(this); }
-  ~Reg() { allRegs.erase(this); }
-  // 禁用拷贝
-  Reg(const Reg &) = delete;
-  Reg &operator=(const Reg &) = delete;
-  // 禁用移动
-  Reg(Reg &&) = delete;
-  Reg &operator=(Reg &&) = delete;
+    public:
+        Reg() : curr_val(T()), next_val(T()), used(false) {
+            reg_lists.insert(this);
+        }
+        Reg(T rst_val) : curr_val(rst_val), next_val(rst_val), used(false) {
+            reg_lists.insert(this);
+        }
 
-void operator<<=(T new_val) {
-    if (w_cnt > 0) {
-        throw std::runtime_error("Multiple assignments in the same cycle are not allowed!");
-    }
-    
-    if (next_val != new_val) {
-        next_val = new_val;
-        w_cnt++;
-    }
-}
+        ~Reg() {
+            reg_lists.erase(this);
+        }
 
-void update() override {
-    if (curr_val != next_val) {
-        curr_val = next_val;
-    }
-    w_cnt = 0; // Reset write count for the next cycle
-}
+        void write(T val) {
+            next_val = val;
+            used = true;
+        }
 
-  operator T() const { return curr_val; }
+        constexpr T read() const {
+            return curr_val;
+        }
 
-  // 等于运算符（支持T和Reg<T>比较）
-  bool operator==(const T &other) const noexcept { return curr_val == other; }
+        void update() override{
+            curr_val = next_val;
+            used = false;
+        }
 
-  bool operator==(const Reg<T> &other) const noexcept {
-    return curr_val == other.curr_val;
-  }
+        void reset() {
+            curr_val = rst_val;
+            next_val = rst_val;
+            used = false;
+        }
 
-  bool operator<=>(const T &other) const noexcept { return curr_val <=> other; }
-  bool operator<=>(const Reg<T> &other) const noexcept {
-    return curr_val <=> other.curr_val;
-  }
+        // // operator = 
+        // Reg& operator=(const Reg& reg) {
+        //     if (used) {
+        //         throw std::runtime_error("more than one write in one cycle");
+        //     }
+        //     next_val = reg.next_val;
+        //     used = true;
+        //     return *this;
+        // }
 
-  // 不等于运算符（通过等于运算符实现）
-  bool operator!=(const T &other) const noexcept { return !(*this == other); }
+        // Reg& operator=(const T val) {
+        //     if (used) {
+        //         throw std::runtime_error("more than one write in one cycle");
+        //     }
+        //     next_val = val;
+        //     used = true;
+        //     return *this;
+        // }
 
-  bool operator!=(const Reg<T> &other) const noexcept {
-    return !(*this == other);
-  }
+        Reg& operator<<=(const Reg& reg) {
+            next_val = reg.curr_val;
+            used = true;
+            return *this;
+        }
 
-  // 类型安全的全局比较运算符
-  friend bool operator==(const T &lhs, const Reg<T> &rhs) noexcept {
-    return rhs == lhs; // 复用成员函数
-  }
+        Reg& operator<<=(const T val) {
+            next_val = val;
+            used = true;
+            return *this;
+        }
 
-  friend bool operator!=(const T &lhs, const Reg<T> &rhs) noexcept {
-    return rhs != lhs;
-  }
-
-  // 仅用于初始化
-  Reg &operator=(const T val) noexcept {
-    if (curr_val != val) {
-      curr_val = val;
-    }
-    return *this;
-  }
-
-  // implement fmt::printf for Reg
-  friend std::ostream &operator<<(std::ostream &os, const Reg<T> &reg) {
-    return os << reg.curr_val;
-  }
+    private:
+        T curr_val;
+        T next_val;
+        T rst_val;
+        bool used;
 };

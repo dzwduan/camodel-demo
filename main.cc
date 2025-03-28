@@ -1,56 +1,45 @@
 #include "gtest/gtest.h"
-#include "reg.h"
+#include "reg_test.h"
 #include <cstdint>
+#include "fifo_test.h"
 
+#include <gtest/gtest.h>
+#include <execinfo.h>
+#include <execinfo.h>
+#include <dlfcn.h>    // 用于 dladdr
+#include <cxxabi.h>   // 用于反混淆符号
 
-class TestReg : public ::testing::Test {
-protected:
-    void SetUp() override {
-        reg = new Reg<int>(0);
+void PrintStackTrace() {
+    void* buffer[100];
+    int num_frames = backtrace(buffer, 100);
+    char** symbols = backtrace_symbols(buffer, num_frames);
+
+    std::cerr << "\nCall stack:" << std::endl;
+    for (int i = 0; i < num_frames; i++) {
+        Dl_info info;
+        if (dladdr(buffer[i], &info) && info.dli_sname) {
+            // 反混淆 C++ 符号
+            int status = 0;
+            char* demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, &status);
+            const char* name = (status == 0) ? demangled : info.dli_sname;
+            std::cerr << "#" << i << " " << buffer[i] << " : " << name << std::endl;
+            free(demangled);
+        } else {
+            std::cerr << "#" << i << " " << symbols[i] << std::endl;
+        }
     }
-
-    void TearDown() override {
-        delete reg;
-    }
-
-    Reg<int> *reg;
-};
-
-TEST_F(TestReg, test1) {
-    EXPECT_EQ(*reg, 0);
-    *reg <<= 1;
-    EXPECT_EQ(*reg, 0);
-    reg->update();
-    EXPECT_EQ(*reg, 1);
+    free(symbols);
 }
 
-TEST_F(TestReg, test2) {
-    EXPECT_EQ(*reg, 0);
-    *reg <<= 1;
-    EXPECT_EQ(*reg, 0);
-    reg->update();
-    EXPECT_EQ(*reg, 1);
-    *reg <<= 2;
-    EXPECT_EQ(*reg, 1);
-    reg->update();
-    EXPECT_EQ(*reg, 2);
-}
-
-TEST_F(TestReg, test_w_cnt) {
-    EXPECT_EQ(*reg, 0);
-    *reg <<= 1;
-    *reg <<= 2;
-}
-
-
-// write a fifo test using reg
-class Fifo {
-
-};
-
-
+class StackTraceListener : public testing::EmptyTestEventListener {
+    public:
+        void OnTestPartResult(const testing::TestPartResult& result) override {
+            if (result.failed()) {
+                PrintStackTrace(); // 触发堆栈打印
+            }
+        }
+    };
     
-
 
 // unit test main
 int main(int argc, char *argv[]) {
